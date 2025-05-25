@@ -194,7 +194,7 @@ class Controller extends Observer {
    * @private
    */
   bufferingStart() {
-    this.fireEvent('pause-start');
+    this.fireEvent('buffering-start');
 
     this.isBuffering = true;
 
@@ -210,7 +210,7 @@ class Controller extends Observer {
 
     this.isBuffering = false;
 
-    this.fireEvent('pause-end');
+    this.fireEvent('buffering-end');
   }
 
   /**
