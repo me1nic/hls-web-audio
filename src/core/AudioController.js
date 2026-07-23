@@ -333,9 +333,11 @@ export default class Controller extends Observer {
   // --- Notifications & Events ---
   /**
    * Resets playback state and emits the end event.
+   *
+   * @returns {Promise<void>}
    */
-  end() {
-    this.engine.reset();
+  async end() {
+    await this.engine.reset();
     this.fireEvent('end');
   }
 

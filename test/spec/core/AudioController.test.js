@@ -407,6 +407,83 @@ describe('controller', () => {
     });
   });
 
+  describe('#end', () => {
+    let controller;
+
+    beforeEach(() => {
+      controller = new Controller();
+    });
+
+    afterEach(() => {
+      controller.destroy();
+    });
+
+    it('waits for reset before firing "end" and resolving', async () => {
+      const order = [];
+      let resolveReset;
+      let endResolved = false;
+      const resetPromise = new Promise((resolve) => {
+        resolveReset = () => {
+          order.push('reset');
+          resolve();
+        };
+      });
+      controller.engine.reset = sinon.stub().returns(resetPromise);
+      const endListener = sinon.spy(() => order.push('end'));
+      controller.on('end', endListener);
+
+      const endPromise = controller.end().then(() => {
+        endResolved = true;
+        order.push('resolved');
+      });
+
+      expect(controller.engine.reset.calledOnce).to.be.true;
+      expect(endListener.notCalled).to.be.true;
+      expect(endResolved).to.be.false;
+
+      resolveReset();
+      await endPromise;
+
+      expect(endListener.calledOnce).to.be.true;
+      expect(order).to.deep.equal(['reset', 'end', 'resolved']);
+    });
+
+    it('does not fire "end" and rejects with the reset error', async () => {
+      const resetError = new Error('reset failed');
+      controller.engine.reset = sinon.stub().rejects(resetError);
+      const endListener = sinon.spy();
+      controller.on('end', endListener);
+
+      let thrownError;
+      try {
+        await controller.end();
+      } catch (err) {
+        thrownError = err;
+      }
+
+      expect(controller.engine.reset.calledOnce).to.be.true;
+      expect(endListener.notCalled).to.be.true;
+      expect(thrownError).to.equal(resetError);
+    });
+
+    it('allows play to be requested immediately from the "end" handler', async () => {
+      controller.engine.reset = sinon.stub().callsFake(async () => {
+        await Promise.resolve();
+        controller.engine.desiredState = 'suspended';
+      });
+      controller.engine.play = sinon.stub().callsFake(async () => {
+        controller.engine.desiredState = 'resumed';
+      });
+      controller.on('end', () => controller.play());
+
+      await controller.end();
+
+      expect(controller.engine.reset.calledOnce).to.be.true;
+      expect(controller.engine.play.calledOnce).to.be.true;
+      expect(controller.desiredState).to.equal('resumed');
+    });
+  });
+
   describe('#duration', () => {
     let controller;
     beforeEach(() => {
